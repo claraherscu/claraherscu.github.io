@@ -63,14 +63,15 @@ There are a few decisions we have to make when approaching a registration task.
 1. How much are we willing to distort the image? This will determine the degrees of freedom we want in our registration model
 2. What similarity metric fits the images we're using?
 3. How do we want to perform interpolation for pixels? 
-4. Do we want to use the image intensity directly or extract features from the image and use them to perform the registration?
+4. Do we want to use the image intensity directly (intensity-based registration) or extract features from the image and use them to perform the registration (feature-based registration)?
 
 In this example I'll perform an **intensity-based** optimization, and due to the different characteristics of the images, 
 I'll allow a **big amount of distortion**, therefore using the ants `'SyN'` transformation. 
 For a less accurate registration that would not distort the moving image, I could use the ants `'Affine'` or `'TRSAA'` transformations 
 (for more details about types of transformations please check out the documentation notes [here](https://antspy.readthedocs.io/en/latest/registration.html)).  
 
-As for the possible similarity metrics, for most registration tasks, usually either Mutual Information or Cross Correlation will be enough. 
+As for the possible similarity metrics, for most registration tasks, usually either 
+[Mutual Information](https://en.wikipedia.org/wiki/Mutual_information) or [Cross Correlation](https://en.wikipedia.org/wiki/Cross-correlation) will be enough. 
 In general, Cross Correlation works well for intra-modality registration, and Mutual Information works well for both intra- and inter-modality registration. 
 Here, since the example is inter-modality, I'll use **Mutual Information**.
 
@@ -81,7 +82,7 @@ Here, since the example is inter-modality, I'll use **Mutual Information**.
 > **Note**: to create the overlay images I padded the MRI to match the shape of the CT, normalized each image to range [0, 255] (uint8) and then created the overlay image `overlay = np.ubyte(0.7*img1 + 0.3*img2)`
 
 **OK, so let's do this!**
-I'll perform the egistration in two steps:
+I'll perform the registration in two steps:
 1. Calculating the transformation parameters
 2. Applying the parameters to `moving_series`
 
@@ -116,14 +117,14 @@ To perform the optimization process to calculate the transformation parameters w
  MI_METRIC = 'mattes'
  SYN_TRANSFORM = 'SyN'
  
- def get_transformation_params(reference_ants: ants.ANTsImage, moving_atns: ants.ANTsImage, registration_iterations: tuple = DEFAULT_REGISTRATION_ITERATIONS,
-                               transform_type: str = SYN_TRANSFORM, aff_metric=MI_METRIC) -> dict:
-     return ants.registration(fixed=reference_ants, moving=moving_atns, type_of_transform=transform_type, reg_iterations=registration_iterations, aff_metric=aff_metric)
+ def get_transformation_params(reference_ants: ants.ANTsImage, moving_ants: ants.ANTsImage, registration_iterations: tuple = DEFAULT_REGISTRATION_ITERATIONS,
+                               transform_type: str = SYN_TRANSFORM, similarity_metric=MI_METRIC) -> dict:
+     return ants.registration(fixed=reference_ants, moving=moving_ants, type_of_transform=transform_type, reg_iterations=registration_iterations, aff_metric=similarity_metric)
  ```
 
 `ants.registration` returns a dictionary, containing: 
 - The `moving_series` warped to be registered to `static_series` (`'warpedmovout'`)
-- The `static_series` warped to be registered to `moving_series` (`warpedfixout`)
+- The `static_series` warped to be registered to `moving_series` (`'warpedfixout'`)
 - The transformation parameters to register `moving_series` to `static_series` (`'fwdtransforms'`)
 - The inverse transformation parameters, that is, to register `static_series` to `moving_series` (`'invtransforms'`)
 
@@ -149,9 +150,9 @@ def apply_transformation(reference_ants: ants.ANTsImage, moving_ants: ants.ANTsI
 
 ```python
 def register_series(moving_series_array: np.ndarray, reference_series_array: np.ndarray,
-                    registration_iterations=DEFAULT_REGISTRATION_ITERATIONS, 
+                    registration_iterations: tuple = DEFAULT_REGISTRATION_ITERATIONS, 
                     transform_type: str = SYN_TRANSFORM, 
-                    aff_metric=MI_METRIC) -> (np.ndarray, dict):
+                    similarity_metric: str = MI_METRIC) -> (np.ndarray, dict):
     # convert both scans to ants objects
     moving_series_ants = get_ants_from_numpy(moving_series_array)
     reference_series_ants = get_ants_from_numpy(reference_series_array)
@@ -160,7 +161,7 @@ def register_series(moving_series_array: np.ndarray, reference_series_array: np.
     transformation = get_transformation_params(reference_series_ants, moving_series_ants, 
                                                registration_iterations=registration_iterations, 
                                                transform_type=transform_type, 
-                                               aff_metric=aff_metric)
+                                               similarity_metric=similarity_metric)
 
     # apply the transformation
     registered_ants_series = apply_transformation(reference_series_ants, moving_series_ants, 
@@ -168,13 +169,13 @@ def register_series(moving_series_array: np.ndarray, reference_series_array: np.
                                                   interpolator=INTERPOLATION_TYPE)
 
     # retrieve registered numpy array
-    registered_series_array = get_numpy_from_ants(registered_ants_series)
-    return registered_series_array, transformation
+    registered_moving_series = get_numpy_from_ants(registered_ants_series)
+    return registered_moving_series, transformation
 
-registered_series_array, transformation = register_series(moving_series, static_series)
+registered_moving_series, transformation = register_series(moving_series, static_series)
 ```
 
-After this registration process, `registered_series_array` above, is a new version of `moving_series`, after it was registered to `static_series`.
+After this registration process, `registered_moving_series` above, is a new version of `moving_series`, after it was registered to `static_series`.
 <center><img src="/assets/overlay_after_reg_bone.png" alt="Example slice overlay of MRI and CT after registration" height="400"/>
 <img src="/assets/overlay_after_reg_bone_2.png" alt="Example slice overlay of MRI and CT after registration" height="400"/></center>
 <center>Overlay of slices from the CT and the MRI after registration<br/><br/></center>
@@ -189,7 +190,7 @@ Note that this means it's shape has changed to match the shape of `static_series
 print(f'Shape comparison')
 print(f'Moving image shape before registration: {moving_series.shape}')
 print(f'Target image shape before registration: {static_series.shape}')
-print(f'Moving image shape after registration: {registered_series_array.shape}')
+print(f'Moving image shape after registration: {registered_moving_series.shape}')
 
 >>> Shape comparison 
 >>> Moving image shape before registration: (239, 512, 512)
