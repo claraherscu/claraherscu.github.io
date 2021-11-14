@@ -118,7 +118,7 @@ To perform the optimization process to calculate the transformation parameters w
  SYN_TRANSFORM = 'SyN'
  
  def get_transformation_params(reference_ants: ants.ANTsImage, moving_ants: ants.ANTsImage, registration_iterations: tuple = DEFAULT_REGISTRATION_ITERATIONS,
-                               transform_type: str = SYN_TRANSFORM, similarity_metric=MI_METRIC) -> dict:
+                               transform_type: str = SYN_TRANSFORM, similarity_metric: str = MI_METRIC) -> dict:
      return ants.registration(fixed=reference_ants, moving=moving_ants, type_of_transform=transform_type, reg_iterations=registration_iterations, aff_metric=similarity_metric)
  ```
 
