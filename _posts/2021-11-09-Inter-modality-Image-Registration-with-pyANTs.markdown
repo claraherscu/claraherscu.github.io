@@ -5,7 +5,7 @@ date:   2021-11-09 16:07:59 +0200
 categories: jekyll update
 ---
 Working with medical images, it's often very convenient to have all the scans in your dataset share the same coordinate system.
-For example, if you wish to do some local (e.g. pixel-wise) comparison between images that may not be aligned 
+For example, when you wish to do some local (e.g. pixel-wise) comparison between images that may not be aligned 
 (different patients anatomies, different positions in the scanner, patient breathing or moving during the scan, etc.). 
 
 Another cool use of registration is [atlas-based segmentation](https://en.wikipedia.org/wiki/Medical_image_computing#Atlases). Say you have a segmentation task for which you have a solution over one image 
@@ -90,11 +90,9 @@ As for the possible similarity metrics, for most registration tasks, usually eit
 In general, Cross Correlation works well for intra-modality registration, and Mutual Information works well for both intra- and inter-modality registration. 
 Here, since the example is inter-modality, I'll use **Mutual Information**.
 
-<center><img src="/assets/overlay_before_reg_bone.png" alt="Example slice overlay of MRI and CT before registration" height="300"/>
-<img src="/assets/overlay_before_reg_bone_2.png" alt="Example slice overlay of MRI and CT before registration" height="300"/></center>
-<center>Overlay of slices from the CT and the MRI before registration<br/><br/></center>
+<center><img src="/assets/before_registration.gif" alt="slices from MRI and CT before registration" height="500"/></center>
+<center>Slices from the CT and the MRI side by side before registration<br/><br/></center>
 
-> **Note**: to create the overlay images I padded the MRI to match the shape of the CT, normalized each image to range [0, 255] (uint8) and then created the overlay image `overlay = np.ubyte(0.7*img1 + 0.3*img2)`
 
 **OK, so let's do this!**
 I'll perform the registration in two steps:
@@ -191,9 +189,8 @@ registered_moving_series, transformation = register_series(moving_series, static
 ```
 
 After this registration process, `registered_moving_series` above, is a new version of `moving_series`, after it was registered to `static_series`.
-<center><img src="/assets/overlay_after_reg_bone.png" alt="Example slice overlay of MRI and CT after registration" height="400"/>
-<img src="/assets/overlay_after_reg_bone_2.png" alt="Example slice overlay of MRI and CT after registration" height="400"/></center>
-<center>Overlay of slices from the CT and the MRI after registration<br/><br/></center>
+<center><img src="/assets/after_registration.gif" alt="slices from MRI and CT after registration" height="500"/></center>
+<center>Slices from the CT and the MRI side by side after registration<br/><br/></center>
 
 <center><img src="/assets/ct_example_slice_windowed.png" alt="Example slice from a CT scan" height="400"/>   <img src="/assets/ct_slice_registered.png" alt="Example slice from the registered CT scan" height="400"/></center>
 <center>Example slices from the CT scan before (left) and after (right) registration<br/><br/></center>
