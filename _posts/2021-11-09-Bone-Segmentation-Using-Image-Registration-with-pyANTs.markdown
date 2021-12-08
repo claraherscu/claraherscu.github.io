@@ -1,21 +1,32 @@
 ---
 layout: post
-title:  "Inter-modality Image Registration with pyANTs"
+title:  "Bone Segmentation Using Image Registration with pyANTs"
 date:   2021-11-09 16:07:59 +0200
 categories: jekyll update
 ---
-Working with medical images, it's often very convenient to have all the scans in your dataset share the same coordinate system.
-For example, when you wish to do some local (e.g. pixel-wise) comparison between images that may not be aligned 
-(different patients anatomies, different positions in the scanner, patient breathing or moving during the scan, etc.). 
+In this post I'll walk you through a python example showing how we can use Image Registration to segment the bones in a CT head scan.
+I'll give a working python example, using two head scans from two different 3D modalities (MRI and CT), with ANTs library.
 
-Another cool use of registration is [atlas-based segmentation](https://en.wikipedia.org/wiki/Medical_image_computing#Atlases). Say you have a segmentation task for which you have a solution over one image 
+## Introduction
+
+[Image Registration](https://en.wikipedia.org/wiki/Medical_image_computing#Registration) is the problem of aligning multiple images to the 
+same coordinate system. This can be useful for tasks that involve local comparison between images 
+like tracking changes across multiple images, for example tracking tumor growth along time, identifying new objects in satellite images of the same area, etc.
+
+Another cool use of registration is [atlas-based segmentation](https://en.wikipedia.org/wiki/Medical_image_computing#Atlases). 
+Say you have a segmentation task for which you have a solution over one image 
 (or a small collection of images), you can use the segmentation masks you have and apply them to other images if you align them all.
 
-However, this problem called [Image Registration](https://en.wikipedia.org/wiki/Medical_image_computing#Registration) is sometimes challenging and can become hard to implement in a way that actually works in real life.
+Specifically, in this post I'll use ANTs to register a head CT scan to an MRI scan with a corresponding bone mask, to get a masked version of the CT scan.
 
-In this post I'll walk you through a python example for the  registration of head scans from two different 3D modalities (MRI and CT), using ANTs library. 
-I'll also demonstrate how we can use that technique to leverage existing segmentation masks for different scans. 
+<center><img src="/assets/mri_masked.gif" alt="MRI with mask" height="500"/></center>
+<center>MRI with corresponding mask<br/><br/></center>
 
+Just naiively resizing the MRI mask and applying it to a CT will obviously yield bad results:
+<center><img src="/assets/ct_masked_no_registration.gif" alt="CT with naiively reshaped mask" height="500"/></center>
+<center>CT with naiively reshaped mask<br/><br/></center>
+
+So I'll first register the scans and then I can use the mask on the CT scan as well.
 
 ## The Data
 Before I jump in to register the CT scan to the MRI scan, let's take a quick look at them.
@@ -60,13 +71,6 @@ print(f'MRI: minimum value={mri_series.min()}, maximum value={mri_series.max()}'
 print(f'CT: minimum value={ct_series.min()}, maximum value={ct_series.max()}')
 >>> CT: minimum value=-3023, maximum value=3071
 ```
-
-I used the same method to also load the brain segmentation mask for the MNI:
-<center><img src="/assets/mni_mask_1.png" alt="Example slice from an MRI scan with mask" height="300"/>  
-<img src="/assets/mni_mask_2.png" alt="Example slice from an MRI scan with mask" height="300"/>  
-<img src="/assets/mni_mask_3.png" alt="Example slice from an MRI scan with mask" height="300"/></center>
-<center>Example slices from a head MRI scan with the brain mask<br/><br/></center>
-
 
 ## Image Registration
 
@@ -192,11 +196,6 @@ After this registration process, `registered_moving_series` above, is a new vers
 <center><img src="/assets/after_registration.gif" alt="slices from MRI and CT after registration" height="500"/></center>
 <center>Slices from the CT and the MRI side by side after registration<br/><br/></center>
 
-<center><img src="/assets/ct_example_slice_windowed.png" alt="Example slice from a CT scan" height="400"/>   <img src="/assets/ct_slice_registered.png" alt="Example slice from the registered CT scan" height="400"/></center>
-<center>Example slices from the CT scan before (left) and after (right) registration<br/><br/></center>
-
-
-
 Note that this means it's shape has changed to match the shape of `static_series`:
 ```python
 print(f'Shape comparison')
@@ -210,7 +209,7 @@ print(f'Moving image shape after registration: {registered_moving_series.shape}'
 >>> Moving image shape after registration: (156, 220, 172)
 ```
 
-### Bonus: Using the MNI Segmentation Mask
+### Step 4: Using the MNI Segmentation Mask
 
 Once we've registered the CT to the MRI, it's now trivial to use the MRI mask over the CT in that space.
 
@@ -232,9 +231,8 @@ mask_transformed_ants = apply_inverse_transformation(moving_series_ants,
 mask_transformed = get_numpy_from_ants(mask_transformed_ants)
 ```
 
-<center><img src="/assets/ct_mask_slice.png" alt="Example slice from a CT scan with brain mask" height="300"/>   
-<img src="/assets/ct_no_bones.png" alt="Example slice from a masked CT scan" height="300"/></center>
-<center>Example slice from the CT scan with the brain mask (left) and with this mask applied to the scan to remove the bones (right)<br/><br/></center>
+<center><img src="/assets/ct_masked_after_registration.gif" alt="CT masked after registration" height="500"/></center>
+<center>CT scan with the mask after registration<br/><br/></center>
 
 ## Summary and Pro Tips
 
