@@ -4,41 +4,29 @@ title:  "Bone Segmentation Using Image Registration with pyANTs"
 date:   2021-11-09 16:07:59 +0200
 categories: jekyll update
 ---
-In this post I'll walk you through a python example showing how we can use Image Registration to segment the bones in a CT head scan.
-I'll give a working python example, using two head scans from two different 3D modalities (MRI and CT), with ANTs library.
+In this post I'll walk you through a python example showing how to use image registration to remove the bones from a head CT scan.
+The registration will be done between two head scans from two different 3D modalities - MRI and CT using the ANTs library.
 
 ## Introduction
 
-[Image Registration](https://en.wikipedia.org/wiki/Medical_image_computing#Registration) is the problem of aligning multiple images to the 
+[Image Registration](https://en.wikipedia.org/wiki/Medical_image_computing#Registration) is the process of aligning multiple images to the 
 same coordinate system. This can be useful for tasks that involve local comparison between images 
 like tracking changes across multiple images, for example tracking tumor growth along time, identifying new objects in satellite images of the same area, etc.
 
 Another cool use of registration is [atlas-based segmentation](https://en.wikipedia.org/wiki/Medical_image_computing#Atlases). 
-Say you have a segmentation task for which you have a solution over one image 
-(or a small collection of images), you can use the segmentation masks you have and apply them to other images if you align them all.
+Say you have a segmentation task for which you have a solution over one image, you can use the segmentation masks you have and apply them to other images if you align them all.
 
 Specifically, in this post I'll use ANTs to register a head CT scan to an MRI scan with a corresponding bone mask, to get a masked version of the CT scan.
 
-<center><img src="/assets/mri_masked.gif" alt="MRI with mask" height="500"/></center>
-<center>MRI with corresponding mask<br/><br/></center>
-
-Just naiively resizing the MRI mask and applying it to a CT will obviously yield bad results:
-<center><img src="/assets/ct_masked_no_registration.gif" alt="CT with naiively reshaped mask" height="500"/></center>
-<center>CT with naiively reshaped mask<br/><br/></center>
-
-So I'll first register the scans and then I can use the mask on the CT scan as well.
-
 ## The Data
-Before I jump in to register the CT scan to the MRI scan, let's take a quick look at them.
-
-As I mentioned, in this post I'll use two types of head scans. 
+In this post I'll use two types of head scans: 
 1. Head MRI - [MNI305](http://nist.mni.mcgill.ca/mni-average-brain-305-mri/). 
-   This is a common atlas used in the field, and it also has various segmentation masks we can use. 
-2. Head CT - from the [CQ500 dataset](http://headctstudy.qure.ai/dataset)
+   This is a common atlas used in the field, and it also has various segmentation masks we can use.
+   This will be our static template image, other images will be registered to it and can then use its masks.
+2. Head CT - from the [CQ500 dataset](http://headctstudy.qure.ai/dataset).
+   These are the unsegmented images we are going to register to our template.
 
 Even though each of these scans is a 3D image volume of a human head, they have quite different characteristics in terms of shape and pixel values.
-
-I used [nibabel](https://nipy.org/nibabel/) to load the images:
 
 ```python
 import nibabel as nib
@@ -72,15 +60,30 @@ print(f'CT: minimum value={ct_series.min()}, maximum value={ct_series.max()}')
 >>> CT: minimum value=-3023, maximum value=3071
 ```
 
+Like I mentioned, the atlas MRI comes with a soft matter (anything not a bone) segmentation mask. Here is a visualization of the mri with its segmentation.
+
+<center><img src="/assets/mri_masked.gif" alt="MRI with mask" height="500"/></center>
+<center>MRI with corresponding mask<br/><br/></center>
+
+## A (very very) naiive approach
+
+What would happen if we try to use the MRI mask on one of the CT scans without registering them first? 
+Lets give it a try:
+
+<center><img src="/assets/ct_masked_no_registration.gif" alt="CT with naiively reshaped mask" height="500"/></center>
+<center>CT with naiively reshaped mask<br/><br/></center>
+
+As expected, this could never work. But, after we align the CT scan to the same coordinates of the template, the mask will fit perfectly! 
+
 ## Image Registration
 
-Image Registration is the well researched problem of *transforming two images into the same coordinate system*.
+Image registration is the well researched problem of *transforming two images into the same coordinate system*.
 Specifically, one of the images defines the target coordinate system and will be called the *fixed image* or *static image* 
 (it will not move or change during this process), and the other, *moving image* will be registered to it.
 
 There are a few decisions we have to make when approaching a registration task. 
-1. How much are we willing to distort the image? This will determine the degrees of freedom we want in our registration model
-2. What similarity metric fits the images we're using?
+1. How much are we willing to distort the moving image? This will determine the degrees of freedom we want in our registration model
+2. What similarity metric fits the images we are using?
 3. How do we want to perform interpolation for pixels? 
 4. Do we want to use the image intensity directly (intensity-based registration) or extract features from the image and use them to perform the registration (feature-based registration)?
 
@@ -94,15 +97,12 @@ As for the possible similarity metrics, for most registration tasks, usually eit
 In general, Cross Correlation works well for intra-modality registration, and Mutual Information works well for both intra- and inter-modality registration. 
 Here, since the example is inter-modality, I'll use **Mutual Information**.
 
+Before we start, let’s look at the two unregistered 3D scans:
 <center><img src="/assets/before_registration.gif" alt="slices from MRI and CT before registration" height="500"/></center>
 <center>Slices from the CT and the MRI side by side before registration<br/><br/></center>
 
 
 **OK, so let's do this!**
-I'll perform the registration in two steps:
-1. Calculating the transformation parameters
-2. Applying the parameters to `moving_series`
-
 
 ### Step 0: numpy to ants (and back)
 
@@ -126,8 +126,8 @@ def get_numpy_from_ants(a: ants.ANTsImage) -> np.ndarray:
 
 ### Step 1: Get transformation parameters
 
-To perform the optimization process to calculate the transformation parameters we need to apply to
-`moving_series` to register it to `static_series`, I'll use [ants.registration](https://antspy.readthedocs.io/en/latest/registration.html).
+The registration process that finds the transformation parameters to align `moving_series` to `static_series` 
+is done by [ants.registration](https://antspy.readthedocs.io/en/latest/registration.html).
 
  ```python
  DEFAULT_REGISTRATION_ITERATIONS = (10, 10, 10)
@@ -139,11 +139,16 @@ To perform the optimization process to calculate the transformation parameters w
      return ants.registration(fixed=reference_ants, moving=moving_ants, type_of_transform=transform_type, reg_iterations=registration_iterations, aff_metric=similarity_metric)
  ```
 
-`ants.registration` returns a dictionary, containing: 
-- The `moving_series` warped to be registered to `static_series` (`'warpedmovout'`)
-- The `static_series` warped to be registered to `moving_series` (`'warpedfixout'`)
-- The transformation parameters to register `moving_series` to `static_series` (`'fwdtransforms'`)
-- The inverse transformation parameters, that is, to register `static_series` to `moving_series` (`'invtransforms'`)
+We have just calculated the transformation parameters, allowing us to map each pixel in `moving_series` to it's new location where it will be aligned with `static_series`.
+
+Actually `ants.registration` does more than that and also returns a bunch of additional useful things. It returns a dictionary, containing:
+
+| Key | Value meaning |
+| ----------- | ----------- |
+| `'fwdtransforms'` | The transformation parameters to register `moving_series` to `static_series` |
+| `'invtransforms'` | The inverse transformation parameters, that is, to register `static_series` to `moving_series` |
+| `'warpedmovout'` | The `moving_series` after applying the transformation we have just calculated. That is, `moving_series` warped to be registered to `static_series` |
+| `'warpedfixout'` | The `static_series` after applying the inverse transformation to it. That is, `static_series` warped to be registered to `moving_series` |
 
 ### Step 2: Apply transformation
 
@@ -193,6 +198,8 @@ registered_moving_series, transformation = register_series(moving_series, static
 ```
 
 After this registration process, `registered_moving_series` above, is a new version of `moving_series`, after it was registered to `static_series`.
+Let's look at both 3d images again, this time registered!
+
 <center><img src="/assets/after_registration.gif" alt="slices from MRI and CT after registration" height="500"/></center>
 <center>Slices from the CT and the MRI side by side after registration<br/><br/></center>
 
@@ -232,7 +239,11 @@ mask_transformed = get_numpy_from_ants(mask_transformed_ants)
 ```
 
 <center><img src="/assets/ct_masked_after_registration.gif" alt="CT masked after registration" height="500"/></center>
-<center>CT scan with the mask after registration<br/><br/></center>
+<center>CT scan with the mask after registration - In original ct coordinate system<br/><br/></center>
+
+> **Note**: The bone removal isn't perfect because CT and MRI are essentially different and it's hard to get a perfect registration between them, 
+> so we should tweak the parameters to fit this specific problem perfectly (for example I used a very small number of iterations in the optimization process). 
+  
 
 ## Summary and Pro Tips
 
