@@ -7,6 +7,8 @@ categories: jekyll update
 In this post I'll walk you through a python example showing how to use image registration to remove the bones from a head CT scan.
 The registration will be done between two head scans from two different 3D modalities - MRI and CT using the ANTs library.
 
+A jupyter notebook with the entire code of this post is available [here](https://github.com/claraherscu/claraherscu.github.io/blob/4a9b4a95419ad276fb541ae0dadfd33b7585b9c1/assets/jupyter_notebooks/Bone%20Segmentation%20Using%20Image%20Registration%20with%20pyANTs.ipynb).
+
 ## Introduction
 
 [Image Registration](https://en.wikipedia.org/wiki/Medical_image_computing#Registration) is the process of aligning multiple images to the 
