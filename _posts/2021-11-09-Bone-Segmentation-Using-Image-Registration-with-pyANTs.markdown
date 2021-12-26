@@ -45,7 +45,7 @@ mri_series = get_data_from_nii_path(mri_series_path)
 ct_series = get_data_from_nii_path(ct_series_path)
 ```
 
-<center><img src="/assets/mri_example_slice.png" alt="Example slice from an MRI scan" height="400"/>  <img src="/assets/ct_example_slice_windowed.png" alt="Example slice from a CT scan" height="400"/></center>
+<center><img src="/assets/bone_segmentation_assets/mri_example_slice.png" alt="Example slice from an MRI scan" height="400"/>  <img src="/assets/bone_segmentation_assets/ct_example_slice_windowed.png" alt="Example slice from a CT scan" height="400"/></center>
 <center>Example slice from a head MRI scan (left) and a CT scan (right)<br/><br/></center>
 
 ```python
@@ -62,7 +62,7 @@ print(f'CT: minimum value={ct_series.min()}, maximum value={ct_series.max()}')
 
 Like I mentioned, the atlas MRI comes with a soft matter (anything not a bone) segmentation mask. Here is a visualization of the mri with its segmentation.
 
-<center><img src="/assets/mri_masked.gif" alt="MRI with mask" height="500"/></center>
+<center><img src="/assets/bone_segmentation_assets/mri_masked.gif" alt="MRI with mask" height="500"/></center>
 <center>MRI with corresponding mask<br/><br/></center>
 
 ## A (very very) naiive approach
@@ -70,7 +70,7 @@ Like I mentioned, the atlas MRI comes with a soft matter (anything not a bone) s
 What would happen if we try to use the MRI mask on one of the CT scans without registering them first? 
 Lets give it a try:
 
-<center><img src="/assets/ct_masked_no_registration.gif" alt="CT with naiively reshaped mask" height="500"/></center>
+<center><img src="/assets/bone_segmentation_assets/ct_masked_no_registration.gif" alt="CT with naiively reshaped mask" height="500"/></center>
 <center>CT with naiively reshaped mask<br/><br/></center>
 
 As expected, this could never work. But, after we align the CT scan to the same coordinates of the template, the mask will fit perfectly! 
@@ -98,7 +98,7 @@ In general, Cross Correlation works well for intra-modality registration, and Mu
 Here, since the example is inter-modality, I'll use **Mutual Information**.
 
 Before we start, let’s look at the two unregistered 3D scans:
-<center><img src="/assets/before_registration.gif" alt="slices from MRI and CT before registration" height="500"/></center>
+<center><img src="/assets/bone_segmentation_assets/before_registration.gif" alt="slices from MRI and CT before registration" height="500"/></center>
 <center>Slices from the CT and the MRI side by side before registration<br/><br/></center>
 
 
@@ -200,7 +200,7 @@ registered_moving_series, transformation = register_series(moving_series, static
 After this registration process, `registered_moving_series` above, is a new version of `moving_series`, after it was registered to `static_series`.
 Let's look at both 3d images again, this time registered!
 
-<center><img src="/assets/after_registration.gif" alt="slices from MRI and CT after registration" height="500"/></center>
+<center><img src="/assets/bone_segmentation_assets/after_registration.gif" alt="slices from MRI and CT after registration" height="500"/></center>
 <center>Slices from the CT and the MRI side by side after registration<br/><br/></center>
 
 Note that this means it's shape has changed to match the shape of `static_series`:
@@ -220,7 +220,7 @@ print(f'Moving image shape after registration: {registered_moving_series.shape}'
 
 Once we've registered the CT to the MRI, it's now trivial to use the MRI mask over the CT in that space.
 
-<center><img src="/assets/ct_mask_mni_space.png" alt="Example slice from a CT scan in the MNI space with brain mask" height="400"/></center>
+<center><img src="/assets/bone_segmentation_assets/ct_mask_mni_space.png" alt="Example slice from a CT scan in the MNI space with brain mask" height="400"/></center>
 <center>Example slice from the CT scan after registration to the MRI, with the brain mask<br/><br/></center>
 
 We might also use the MRI mask in the CT original coordinate system. To do that, we simply apply the inverse transformation on the segmentation mask.
@@ -238,7 +238,7 @@ mask_transformed_ants = apply_inverse_transformation(moving_series_ants,
 mask_transformed = get_numpy_from_ants(mask_transformed_ants)
 ```
 
-<center><img src="/assets/ct_masked_after_registration.gif" alt="CT masked after registration" height="500"/></center>
+<center><img src="/assets/bone_segmentation_assets/ct_masked_after_registration.gif" alt="CT masked after registration" height="500"/></center>
 <center>CT scan with the mask after registration - In original ct coordinate system<br/><br/></center>
 
 > **Note**: The bone removal isn't perfect because CT and MRI are essentially different and it's hard to get a perfect registration between them, 
