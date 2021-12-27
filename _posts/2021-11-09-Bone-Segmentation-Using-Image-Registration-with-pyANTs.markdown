@@ -2,7 +2,7 @@
 layout: post
 title:  "Bone Segmentation Using Image Registration with pyANTs"
 date:   2021-11-09 16:07:59 +0200
-categories: jekyll update
+categories: 
 ---
 In this post I'll walk you through a python example showing how to use image registration to remove the bones from a head CT scan.
 The registration will be done between two head scans from two different 3D modalities - MRI and CT using the ANTs library.
